@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 3. Primitive Definition
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { 
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'; 
+    }
+    function isEmailVerified() { return request.auth.token.email_verified == true; }
+
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. User Profiles
+    match /users/{userId} {
+      function isValidUser(data) {
+        return data.userId == userId
+          && data.name is string && data.name.size() <= 100
+          && data.email is string && data.email.size() <= 100
+          && data.tokens is number && data.tokens >= 0
+          && data.points is number && data.points >= 0
+          && (data.role in ['user', 'admin'])
+          && (data.profilePictureUrl is string || !data.keys().contains('profilePictureUrl'))
+          && (data.bio is string || !data.keys().contains('bio'))
+          && (data.country is string || !data.keys().contains('country'))
+          && (data.totalAdsWatched is number || !data.keys().contains('totalAdsWatched'))
+          && (data.dailyTokensEarned is number || !data.keys().contains('dailyTokensEarned'))
+          && (data.lastEarnedDate is string || !data.keys().contains('lastEarnedDate'))
+          && (data.favoriteLeagues is list || !data.keys().contains('favoriteLeagues'));
+      }
+
+      allow list, get: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming()) && incoming().tokens == 50 && incoming().points == 0 && incoming().role == 'user';
+      allow update: if isOwner(userId) && isValidUser(incoming()) && (
+        incoming().role == existing().role && // Prevent users from promoting themselves
+        // Only allow updating tokens/points for now for the demo, 
+        // in a real app this would be restricted further or handled by Functions
+        incoming().diff(existing()).affectedKeys().hasOnly(['tokens', 'points', 'updatedAt', 'name', 'favoriteLeagues', 'profilePictureUrl', 'bio', 'country'])
+      );
+    }
+
+    // 3. Matches (Read-only for all signed in users)
+    match /matches/{matchId} {
+      allow list, get: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // 4. Predictions
+    match /predictions/{predictionId} {
+      function isValidPrediction(data) {
+        return data.userId == request.auth.uid
+          && data.matchId is string && data.matchId.size() <= 128
+          && data.predictedResult in ['home', 'draw', 'away']
+          && (data.redCardPrediction in ['yes', 'no'] || !data.keys().contains('redCardPrediction'))
+          && (data.cornerPrediction in ['over', 'under'] || !data.keys().contains('cornerPrediction'))
+          && data.amount is number && data.amount >= 0
+          && data.multiplier is number && data.multiplier >= 1.0
+          && data.status in ['pending', 'correct', 'wrong'];
+      }
+
+      allow list, get: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidPrediction(incoming()) 
+        && incoming().status == 'pending'
+        && incoming().rewardClaimed == false;
+      
+      // Users can update their prediction if it's still pending (optional feature)
+      // or we use update for the "reward" logic if client-side
+      allow update: if isSignedIn() && resource.data.userId == request.auth.uid 
+        && isValidPrediction(incoming())
+        && (
+          // Allowing user to update status if they "claim" or if the demo logic is client-side
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'rewardClaimed'])
+        );
+    }
+
+    // 5. App Config
+    match /config/{documentId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

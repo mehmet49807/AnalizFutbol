@@ -1,0 +1,6 @@
+{
+  "name": "AnalizFutbol",
+  "description": "CR7 temalı, canlı skorlar, lig puan durumları ve AI destekli futbol analizi içeren kapsamlı futbol uygulaması.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

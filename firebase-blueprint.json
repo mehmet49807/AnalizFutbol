@@ -1,0 +1,75 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account data, tokens and points.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Unique identifier for the user." },
+        "name": { "type": "string", "description": "Display name." },
+        "email": { "type": "string", "description": "User email." },
+        "tokens": { "type": "number", "description": "In-game currency." },
+        "points": { "type": "number", "description": "User experience/rank points." },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "User role." },
+        "profilePictureUrl": { "type": "string", "description": "URL to profile picture." },
+        "bio": { "type": "string", "description": "User biography." },
+        "country": { "type": "string", "description": "User country." },
+        "totalAdsWatched": { "type": "number", "description": "Total number of ads watched by the user." },
+        "dailyTokensEarned": { "type": "number", "description": "Tokens earned today." },
+        "lastEarnedDate": { "type": "string", "description": "Last date tokens were earned for daily tracking." },
+        "favoriteLeagues": { "type": "array", "items": { "type": "string" }, "description": "List of favorite league IDs." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "email", "tokens", "points"]
+    },
+    "Match": {
+      "title": "Football Match",
+      "description": "Details about upcoming or finished matches.",
+      "type": "object",
+      "properties": {
+        "matchId": { "type": "string" },
+        "homeTeam": { "type": "string" },
+        "awayTeam": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "league": { "type": "string" },
+        "status": { "type": "string", "enum": ["upcoming", "finished"] },
+        "result": { "type": "string", "enum": ["home", "draw", "away"], "description": "Actual result of the match." }
+      },
+      "required": ["matchId", "homeTeam", "awayTeam", "startTime", "league", "status"]
+    },
+    "Prediction": {
+      "title": "User Prediction",
+      "description": "A user's prediction for a match.",
+      "type": "object",
+      "properties": {
+        "predictionId": { "type": "string" },
+        "userId": { "type": "string" },
+        "matchId": { "type": "string" },
+        "predictedResult": { "type": "string", "enum": ["home", "draw", "away"] },
+        "redCardPrediction": { "type": "string", "enum": ["yes", "no"], "description": "Prediction for red card presence." },
+        "cornerPrediction": { "type": "string", "enum": ["over", "under"], "description": "Prediction for corner count (2.5 threshold)." },
+        "amount": { "type": "number", "description": "Token amount bet." },
+        "multiplier": { "type": "number", "description": "Potential win multiplier." },
+        "status": { "type": "string", "enum": ["pending", "correct", "wrong"] },
+        "rewardClaimed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["predictionId", "userId", "matchId", "predictedResult", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles."
+    },
+    "/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Football match data."
+    },
+    "/predictions/{predictionId}": {
+      "schema": "Prediction",
+      "description": "User predictions."
+    }
+  }
+}
